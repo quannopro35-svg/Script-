@@ -22,7 +22,7 @@ const discordClient = new Client({
 });
 
 // CONFIG DISCORD - THAY CÁI NÀY
-const TOKEN = 'MTQ1Njk2NDc5NDIxMjE1OTcwMg.GEvb_q.UIxdf1LtmKM8S46VrCp6tFowBWj-j8SW181dFA';
+const TOKEN = 'MTQ1Njk2NDc5NDIxMjE1OTcwMg.Gbjcnz.OTQf4MPxvnLklLbUPfeaDSvTCeJMuBxh70tfZM';
 const CHANNEL_ID = '1456595444477198508';
 // ====================================================
 
