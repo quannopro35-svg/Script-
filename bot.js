@@ -19,8 +19,12 @@ const client = new Client({
 });
 
 // ==================== CONFIG ====================
-const TOKEN = process.env.DISCORD_TOKEN || 'MTQ1NjU5ODMxNDI3NDM5NDE2NA.GbkPfw.WdIPLLnbEFUXMOdisLc_y-Dwsqzi8TrkLtrIdg'; // Dùng biến môi trường
+// TOKEN + CHANNEL ID (tự điền vào dấu ....)
+const TOKEN = process.env.DISCORD_TOKEN || 'MTQ1NjU5ODMxNDI3NDM5NDE2NA.GZnomG.mSkY5lC9dwjfUjclz_--07c2A4HC3ReaET4dG4';
 const CHANNEL_ID = process.env.CHANNEL_ID || '1456595444477198508';
+
+// Login bot
+client.login(TOKEN);
 
 // ==================== KIỂM TRA ====================
 if (!TOKEN || TOKEN === 'YOUR_BOT_TOKEN_HERE') {
