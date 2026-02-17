@@ -9,7 +9,7 @@ process.on('unhandledRejection', () => {});
 const { Client, GatewayIntentBits } = require('discord.js');
 
 // ==================== THÔNG TIN CỦA BẠN ====================
-const TOKEN = 'MTQ1NjU5ODMxNDI3NDM5NDE2NA.GA6l4m.gWthu1Y6NkdKcxdO6zne5hT735DS0zBfIhUrZw';
+const TOKEN = 'MTQ1Njk2NDc5NDIxMjE1OTcwMg.GEvb_q.UIxdf1LtmKM8S46VrCp6tFowBWj-j8SW181dFA';
 const CHANNEL_ID = '1456595444477198508';
 
 // ==================== KIỂM TRA TOKEN ====================
